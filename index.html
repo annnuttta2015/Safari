@@ -93,6 +93,7 @@
   .animal{font-size:clamp(22px,4vw,31px)}
   .planned{background:#f7dfaa!important; box-shadow:inset 0 0 0 2px #bd8b43}
   .planned:after{content:""; position:absolute; right:5px; bottom:5px; width:6px; height:6px; border-radius:50%; background:#bd8b43}
+  .guide-next{box-shadow:inset 0 0 0 3px #bd8b43,0 0 0 3px rgba(189,139,67,.18)!important}
   .visited{background:#dce7c7!important; box-shadow:inset 0 0 0 2px rgba(95,127,69,.55)}
   .visited:after{content:"🐾"; position:absolute; right:3px; bottom:1px; font-size:11px; opacity:.65}
   .current{background:#ffe6a9!important; box-shadow:inset 0 0 0 3px var(--accent),0 0 0 3px rgba(139,94,52,.12)}
@@ -244,7 +245,7 @@
       </div>
 
       <div class="smallnote">
-        «Прикинуть маршрут» считает черновик и не сохраняет его как пройденный. «Внести пройденное» — тыкай уже сделанные ходы. Ошибся/ошиблась — нажми последнюю клетку ещё раз. «Новый ход» покажет, сколько вышить, и даст отчёт.
+        «Прикинуть маршрут» считает черновик и оставляет его подсвеченным как подсказку. «Внести пройденное» — тыкай уже сделанные ходы. Ошибся/ошиблась — нажми последнюю клетку ещё раз. «Новый ход» покажет, сколько вышить, и даст отчёт.
       </div>
     </aside>
   </div>
@@ -291,7 +292,7 @@
     <h2>🐾 Добро пожаловать в сафари</h2>
     <p><b>Что здесь делать:</b> отмечать путь по карте, считать крестики, находить животных и копировать отчёт для каждого нового хода.</p>
     <p><b>Если ты уже играешь:</b> нажми «Внести пройденное» и протыкай свой путь по карте по порядку: E5 → дальше по своим ходам. Приложение само посчитает сумму и найденных животных.</p>
-    <p><b>Если хочешь просто подумать:</b> нажми «Прикинуть маршрут». Это черновик — можно считать крестики и искать удобный путь, но он не сохранится как пройденный.</p>
+    <p><b>Если хочешь просто подумать:</b> нажми «Прикинуть маршрут». Это черновик — можно считать крестики и искать удобный путь. Потом он останется подсвеченным на карте, чтобы по нему идти настоящими ходами.</p>
     <p><b>Когда нужен новый ход:</b> нажми «Новый ход / продолжить» и выбери соседнюю клетку. Появится плашка: сколько вышить и готовый отчёт для копирования.</p>
     <div class="buttons" style="margin-top:10px">
       <button class="wide" onclick="welcomeDialog.close()">Пойти в саванну</button>
@@ -311,7 +312,7 @@
 
     <p><b>Стоимость клетки:</b> обычная клетка стоит столько крестиков, сколько на ней написано. Клетка с животным всегда стоит <b>300 крестиков</b>. После перехода на клетку с животным оно считается найденным.</p>
 
-    <p><b>Режим «Прикинуть маршрут»:</b> это черновик для планирования. Можно тыкать клетки и смотреть общую сумму крестиков, чтобы выбрать путь. Такой маршрут не считается пройденным и не перезаписывает сохранённую игру.</p>
+    <p><b>Режим «Прикинуть маршрут»:</b> это черновик для планирования. Можно тыкать клетки и смотреть общую сумму крестиков, чтобы выбрать путь. Такой маршрут не считается пройденным и не перезаписывает сохранённую игру, но остаётся подсвеченным на карте как подсказка. Когда начнёшь «Новый ход», пройденные клетки будут становиться зелёными, а непройденная часть черновика останется жёлтой.</p>
 
     <p><b>Режим «Внести пройденное»:</b> нужен, если ты уже прошла часть сафари. Нажми кнопку и протыкай клетки по порядку, начиная со старта E5. Приложение проверит путь, подсветит пройденные клетки, посчитает общую сумму и отметит найденных животных. Если ошибся/ошиблась — нажми последнюю клетку маршрута ещё раз или кнопку «Шаг назад».</p>
 
@@ -366,6 +367,12 @@ function unique(arr){return [...new Set(arr)]}
 function leftList(){const f = new Set(foundList()); return allAnimals.filter(a=>!f.has(a))}
 function current(){return route[route.length-1] || '—'}
 function stepCount(){return Math.max(0, route.length-1)}
+function nextPlannedCell(){
+  if(!route.length || !planRoute.length) return null;
+  const idx = planRoute.indexOf(current());
+  if(idx >= 0 && idx < planRoute.length-1) return planRoute[idx+1];
+  return null;
+}
 
 function buildMap(){
   const map = $('map');
@@ -395,6 +402,7 @@ function undoLastStep(){
   if(mode==='plan'){
     if(!planRoute.length){toast('Черновик пустой'); return;}
     const removed = planRoute.pop();
+    saveLocal();
     render();
     toast(`Убрала последнюю клетку ${removed} из черновика`);
     return;
@@ -417,7 +425,7 @@ function clickCell(c){
   if(arr.length===0){
     if(c!==startCell){ toast('Начинаем со старта E5. Сначала нажми клетку E5.'); bump(c,false); return; }
     arr.push(c); setActiveRoute(arr);
-    if(mode!=='plan') saveLocal();
+    saveLocal();
     render();
     toast(mode==='plan' ? 'Черновой маршрут начат со старта.' : 'Старт отмечен. Теперь тыкай путь по порядку.');
     bump(c,true); return;
@@ -430,6 +438,7 @@ function clickCell(c){
   arr.push(c); setActiveRoute(arr);
 
   if(mode==='plan'){
+    saveLocal();
     render();
     toast(`Черновик: ${prev} → ${c}. Итого ${planTotal()}х.`);
     bump(c,true);
@@ -467,7 +476,7 @@ function makeLastReport(from,to){
 function render(){
   document.querySelectorAll('.playable').forEach(el=>{
     const c=el.dataset.coord;
-    el.classList.remove('visited','planned','current','found-animal');
+    el.classList.remove('visited','planned','current','found-animal','guide-next');
     const old=el.querySelector('.route-num'); if(old) old.remove();
     const idx = route.indexOf(c);
     const pidx = planRoute.indexOf(c);
@@ -475,6 +484,7 @@ function render(){
       el.classList.add('planned');
       const n=document.createElement('span'); n.className='route-num'; n.textContent=pidx; el.appendChild(n);
     }
+    if(mode!=='plan' && c===nextPlannedCell() && idx<0) el.classList.add('guide-next');
     if(idx>=0){
       el.classList.add('visited');
       const n=document.createElement('span'); n.className='route-num'; n.textContent=idx; el.appendChild(n);
@@ -492,14 +502,13 @@ function render(){
   $('routeBox').textContent = mode==='plan'
     ? (planRoute.length ? `Черновик: ${planRoute.join(' → ')}\nИтого: ${planTotal()}х` : 'Черновик пустой')
     : (route.length ? route.join(' → ') : 'Пока пусто');
-  $('modeHint').textContent = mode==='plan' ? 'Черновик маршрута: счётчик считает, но путь не сохраняется как пройденный' : mode==='enter' ? 'Внесение пройденного: тыкай уже сделанные ходы по порядку' : mode==='play' ? 'Новый ход: нажми следующую клетку, появится сколько вышить и отчёт' : 'Выбери режим: прикинуть, внести пройденное или новый ход';
+  $('modeHint').textContent = mode==='plan' ? 'Черновик маршрута: счётчик считает, но путь не сохраняется как пройденный' : mode==='enter' ? 'Внесение пройденного: тыкай уже сделанные ходы по порядку' : mode==='play' ? (nextPlannedCell() ? `Новый ход: можно идти по подсказке на ${nextPlannedCell()} или выбрать другой соседний ход` : 'Новый ход: нажми следующую клетку, появится сколько вышить и отчёт') : 'Выбери режим: прикинуть, внести пройденное или новый ход';
 }
 function bump(c,good){const el=document.querySelector(`[data-coord="${c}"]`); if(!el)return; el.classList.remove('bad','good-pop'); void el.offsetWidth; el.classList.add(good?'good-pop':'bad'); setTimeout(()=>el.classList.remove('bad','good-pop'),650)}
 function toast(msg){const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(window.toastTimer); window.toastTimer=setTimeout(()=>t.classList.remove('show'),2600)}
-function saveLocal(){localStorage.setItem('safari_route', route.join('-')); localStorage.setItem('safari_tag', $('tagInput').value)}
-function loadLocal(){const r=localStorage.getItem('safari_route'); const tag=localStorage.getItem('safari_tag'); if(tag && tag !== '#matsssko') $('tagInput').value=tag; else $('tagInput').value='#'; if(r) validateAndLoad(r,false)}
-function validateAndLoad(text, noisy=true){
-  const arr = text.toUpperCase().replace(/\s+/g,'').split('-').filter(Boolean);
+function saveLocal(){localStorage.setItem('safari_route', route.join('-')); localStorage.setItem('safari_plan', planRoute.join('-')); localStorage.setItem('safari_tag', $('tagInput').value)}
+function loadLocal(){const r=localStorage.getItem('safari_route'); const pr=localStorage.getItem('safari_plan'); const tag=localStorage.getItem('safari_tag'); if(tag && tag !== '#matsssko') $('tagInput').value=tag; else $('tagInput').value='#'; if(r) validateAndLoad(r,false); if(pr){ const arr=pr.toUpperCase().replace(/\s+/g,'').split('-').filter(Boolean); if(isValidRouteArray(arr)) planRoute=arr; render(); }}
+function isValidRouteArray(arr, noisy=false){
   const seen = new Set();
   if(!arr.length) { if(noisy) toast('Код пустой'); return false; }
   for(let i=0;i<arr.length;i++){
@@ -511,8 +520,12 @@ function validateAndLoad(text, noisy=true){
     if(i>0 && !isAdjacent(arr[i-1],c)){ if(noisy) toast(`Переход ${arr[i-1]} → ${c} не по правилам`); return false; }
     seen.add(c);
   }
+  return true;
+}
+function validateAndLoad(text, noisy=true){
+  const arr = text.toUpperCase().replace(/\s+/g,'').split('-').filter(Boolean);
+  if(!isValidRouteArray(arr, noisy)) return false;
   route = arr;
-  planRoute = [];
   if(route.length>1) makeLastReport(route[route.length-2], route[route.length-1]);
   saveLocal(); render(); if(noisy) toast('Маршрут загружен'); return true;
 }
@@ -520,9 +533,9 @@ async function copy(text){try{await navigator.clipboard.writeText(text); toast('
 
 $('planBtn').onclick=()=>{mode='plan'; planRoute = route.length ? route.slice() : []; toast(planRoute.length ? `Черновик начат с твоей текущей точки ${planRoute[planRoute.length-1]}.` : 'Нажми E5 и прикинь маршрут по крестикам.'); render()};
 $('enterBtn').onclick=()=>{mode='enter'; if(!route.length) toast('Нажми E5, потом клетки своего уже пройденного маршрута.'); else toast('Можно продолжать вносить пройденный путь с текущей клетки.'); render()};
-$('continueBtn').onclick=()=>{mode='play'; planRoute=[]; if(!route.length) toast('Сначала отметь старт E5: можно через «Внести пройденное» или прямо здесь.'); else toast(`Новый ход с ${current()}: нажми клетку, куда хочешь пойти.`); render()};
+$('continueBtn').onclick=()=>{mode='play'; if(!route.length) toast('Сначала отметь старт E5: можно через «Внести пройденное» или прямо здесь.'); else if(nextPlannedCell()) toast(`Новый ход с ${current()}: подсказка ведёт на ${nextPlannedCell()}.`); else toast(`Новый ход с ${current()}: нажми клетку, куда хочешь пойти.`); render()};
 $('undoBtn').onclick=undoLastStep;
-$('resetBtn').onclick=()=>{ if(confirm('Сбросить весь маршрут?')){route=[]; lastReport=''; saveLocal(); render(); toast('Маршрут очищен');}};
+$('resetBtn').onclick=()=>{ if(confirm('Сбросить весь маршрут?')){route=[]; planRoute=[]; lastReport=''; saveLocal(); render(); toast('Маршрут и черновик очищены');}};
 $('saveBtn').onclick=()=>{ if(!route.length){toast('Пока нечего сохранять'); return;} copy(route.join('-')); };
 $('loadBtn').onclick=()=>{ $('loadText').value=route.join('-'); loadDialog.showModal(); };
 $('loadApply').onclick=()=>{ if(validateAndLoad($('loadText').value,true)) loadDialog.close(); };
