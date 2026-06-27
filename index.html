@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Вышивальное сафари</title>
+<style>
+  :root{
+    --ink:#33271b;
+    --muted:#7e6f5f;
+    --line:#dfcfb7;
+    --paper:#fffaf1;
+    --paper2:#f6ecdc;
+    --sand:#ead6b7;
+    --accent:#8b5e34;
+    --accent2:#5f7f45;
+    --danger:#b75b48;
+    --shadow:0 12px 34px rgba(52,38,23,.12);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    min-height:100vh;
+    overflow-x:hidden;
+    font-family:Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(circle at 18% 0%, rgba(255,255,255,.72), transparent 34%),
+      linear-gradient(180deg,#f7ead5 0%,#e6c797 100%);
+  }
+  .wrap{max-width:1120px; margin:0 auto; padding:18px 12px 30px}
+  .sign{
+    margin:0 0 14px;
+    padding:16px 18px;
+    border:1px solid rgba(139,94,52,.28);
+    border-radius:24px;
+    background:rgba(255,250,241,.76);
+    box-shadow:var(--shadow);
+    backdrop-filter:blur(8px);
+  }
+  .sign h1{
+    margin:0;
+    font-family:Georgia, "Times New Roman", serif;
+    font-size:clamp(32px,5vw,54px);
+    line-height:.95;
+    letter-spacing:-.8px;
+  }
+  .sign small{display:block; margin-top:8px; color:var(--muted); font-weight:650; font-size:14px}
+  .panel{display:grid; grid-template-columns:minmax(320px, 1fr) 330px; gap:14px; align-items:start}
+  .card{
+    background:rgba(255,250,241,.82);
+    border:1px solid rgba(139,94,52,.24);
+    border-radius:24px;
+    box-shadow:var(--shadow);
+    backdrop-filter:blur(8px);
+  }
+  .map-card{padding:12px}
+  .map-top{display:flex; justify-content:space-between; gap:8px; align-items:center; margin:0 2px 10px; flex-wrap:wrap}
+  .hint{font-size:13px; color:var(--muted); font-weight:700}
+  .map{
+    width:100%;
+    display:grid;
+    grid-template-columns:34px repeat(10,minmax(0,1fr));
+    gap:3px;
+    padding:3px;
+    border-radius:18px;
+    background:#d6c0a0;
+    touch-action:manipulation;
+  }
+  .cell{
+    position:relative;
+    aspect-ratio:1/1;
+    min-width:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border:0;
+    border-radius:10px;
+    background:rgba(255,250,239,.9);
+    color:var(--ink);
+    font-weight:800;
+    font-size:clamp(14px,2.55vw,24px);
+    line-height:1;
+    text-align:center;
+    user-select:none;
+    transition:transform .14s ease, background .14s ease, box-shadow .14s ease, opacity .14s ease;
+  }
+  .head,.rowhead,.corner{background:rgba(82,96,58,.13); color:#5f5a36; font-size:15px; font-weight:850}
+  .playable{cursor:pointer}
+  .playable:active{transform:scale(.96)}
+  .start{font-size:clamp(10px,1.8vw,15px); letter-spacing:-.4px}
+  .finish{font-size:clamp(22px,4vw,30px)}
+  .animal{font-size:clamp(22px,4vw,31px)}
+  .planned{background:#f7dfaa!important; box-shadow:inset 0 0 0 2px #bd8b43}
+  .planned:after{content:""; position:absolute; right:5px; bottom:5px; width:6px; height:6px; border-radius:50%; background:#bd8b43}
+  .visited{background:#dce7c7!important; box-shadow:inset 0 0 0 2px rgba(95,127,69,.55)}
+  .visited:after{content:"🐾"; position:absolute; right:3px; bottom:1px; font-size:11px; opacity:.65}
+  .current{background:#ffe6a9!important; box-shadow:inset 0 0 0 3px var(--accent),0 0 0 3px rgba(139,94,52,.12)}
+  .found-animal{background:#cfe3b6!important}
+  .route-num{
+    position:absolute; left:4px; top:4px;
+    min-width:17px; height:17px; padding:0 4px;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:999px;
+    background:rgba(51,39,27,.72);
+    color:#fffaf1;
+    font-size:10px;
+    line-height:1;
+  }
+  .good-pop{animation:pop .38s ease}
+  .bad{animation:shake .28s ease; background:#f0b4a9!important}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}50%{transform:translateX(4px)}75%{transform:translateX(-2px)}}
+  @keyframes pop{0%{transform:scale(.92)}55%{transform:scale(1.06)}100%{transform:scale(1)}}
+  .side{padding:14px; display:flex; flex-direction:column; gap:12px}
+  .stats{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+  .stat{background:rgba(255,255,255,.52); border:1px solid var(--line); border-radius:16px; padding:10px}
+  .label{font-size:11px; color:var(--muted); font-weight:850; text-transform:uppercase; letter-spacing:.06em}
+  .value{font-size:24px; font-weight:850; margin-top:2px; letter-spacing:-.5px}
+  .buttons{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+  button{
+    border:0;
+    border-radius:14px;
+    padding:11px 10px;
+    background:var(--accent2);
+    color:#fffaf1;
+    font-weight:850;
+    font-size:14px;
+    cursor:pointer;
+    box-shadow:none;
+  }
+  button:active{transform:translateY(1px)}
+  .secondary{background:var(--accent)}
+  .danger{background:var(--danger)}
+  .wide{grid-column:1/-1}
+  input,textarea,select{
+    width:100%;
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:10px 11px;
+    background:rgba(255,255,255,.72);
+    color:var(--ink);
+    font:15px/1.35 inherit;
+    outline:none;
+  }
+  input:focus,textarea:focus,select:focus{border-color:rgba(139,94,52,.72); box-shadow:0 0 0 3px rgba(139,94,52,.12)}
+  textarea{min-height:86px; resize:vertical}
+  .animals{font-size:24px; line-height:1.4; background:rgba(255,255,255,.42); border:1px solid rgba(223,207,183,.75); border-radius:16px; padding:8px; min-height:45px}
+  .muted{opacity:.24; filter:grayscale(1)}
+  .routebox{font-size:13px; line-height:1.45; max-height:92px; overflow:auto; background:rgba(255,255,255,.42); border:1px solid rgba(223,207,183,.75); border-radius:16px; padding:9px}
+  .smallnote{font-size:13px; color:var(--muted); line-height:1.4}
+  .toast{
+    position:fixed; left:50%; bottom:18px; transform:translateX(-50%) translateY(16px);
+    width:min(92vw,520px);
+    padding:12px 14px;
+    background:#fffaf1;
+    border:1px solid rgba(139,94,52,.28);
+    color:var(--ink);
+    border-radius:16px;
+    box-shadow:0 18px 48px rgba(0,0,0,.22);
+    opacity:0; pointer-events:none; z-index:20;
+    font-weight:750;
+    transition:.2s ease;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+  dialog{border:0; border-radius:22px; max-width:620px; width:calc(100vw - 28px); background:#fffaf1; color:var(--ink); box-shadow:0 22px 70px rgba(0,0,0,.28); padding:0}
+  dialog::backdrop{background:rgba(36,27,18,.42); backdrop-filter:blur(2px)}
+  .modal-inner{padding:18px}
+  .modal-inner h2{margin:0 0 10px; font-size:26px; letter-spacing:-.4px}
+  .rules{line-height:1.45; font-size:15px}
+  .report-preview{white-space:pre-wrap; background:rgba(255,255,255,.58); border:1px dashed rgba(139,94,52,.35); border-radius:16px; padding:11px; line-height:1.35}
+  @media(max-width:860px){
+    .panel{grid-template-columns:1fr}
+    .side{order:2}.map-card{order:1}
+  }
+  @media(max-width:480px){
+    .wrap{padding:10px 7px 24px}
+    .sign{padding:13px 14px; border-radius:20px}
+    .sign h1{font-size:33px}
+    .map-card{padding:8px; border-radius:18px}
+    .map{grid-template-columns:25px repeat(10,minmax(0,1fr)); gap:2px; padding:2px; border-radius:14px}
+    .cell{border-radius:7px; font-size:13px}
+    .head,.rowhead{font-size:12px}
+    .animal,.finish{font-size:21px}.start{font-size:9px}
+    .route-num{left:2px; top:2px; min-width:13px; height:13px; font-size:8px; padding:0 2px}
+    .visited:after{font-size:9px; right:1px; bottom:0}
+    .buttons{gap:7px}
+    button{padding:10px 8px; font-size:13px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="sign">
+    <h1>Вышивальное<br>сафари</h1>
+    <small>строй маршрут, ищи животных и не ходи по своим следам</small>
+  </div>
+
+  <div class="panel">
+    <section class="card map-card">
+      <div class="map-top">
+        <div class="hint" id="modeHint">Нажми «Внести мой путь» или «Продолжить маршрут»</div>
+        <div class="hint">Старт E5 · Финиш рядом с J1</div>
+      </div>
+      <div id="map" class="map" aria-label="Карта сафари"></div>
+    </section>
+
+    <aside class="card side">
+      <div class="stats">
+        <div class="stat"><div class="label">Ход</div><div class="value" id="stepValue">0</div></div>
+        <div class="stat"><div class="label">Всего</div><div class="value" id="totalValue">0х</div></div>
+        <div class="stat"><div class="label">Сейчас</div><div class="value" id="currentValue">—</div></div>
+        <div class="stat"><div class="label">Животные</div><div class="value" id="animalValue">0/12</div></div>
+      </div>
+
+      <div>
+        <div class="label">Хэштег игрока</div>
+        <input id="tagInput" placeholder="#сафари_" value="#" />
+      </div>
+
+      <div>
+        <div class="label">Найденные</div>
+        <div class="animals" id="foundAnimals"></div>
+      </div>
+      <div>
+        <div class="label">Осталось найти</div>
+        <div class="animals" id="leftAnimals"></div>
+      </div>
+
+      <div>
+        <div class="label">Маршрут</div>
+        <div class="routebox" id="routeBox">Пока пусто</div>
+      </div>
+
+      <div class="buttons">
+        <button id="planBtn">Прикинуть маршрут</button>
+        <button id="enterBtn">Внести пройденное</button>
+        <button id="continueBtn" class="wide">Новый ход / продолжить</button>
+        <button class="secondary" id="undoBtn">Шаг назад</button>
+        <button class="danger" id="resetBtn">Сбросить</button>
+        <button class="secondary wide" id="reportBtn">Скопировать отчёт хода</button>
+        <button class="secondary" id="saveBtn">Скопировать код</button>
+        <button class="secondary" id="loadBtn">Загрузить код</button>
+        <button class="wide" id="rulesBtn">Правила</button>
+      </div>
+
+      <div class="smallnote">
+        «Прикинуть маршрут» считает черновик и не сохраняет его как пройденный. «Внести пройденное» — тыкай уже сделанные ходы. Ошибся/ошиблась — нажми последнюю клетку ещё раз. «Новый ход» покажет, сколько вышить, и даст отчёт.
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<dialog id="loadDialog">
+  <div class="modal-inner">
+    <h2>Загрузить маршрут</h2>
+    <p class="smallnote">Вставь код вида E5-D5-C5-C6. Можно загрузить сохранение с другой страницы или телефона.</p>
+    <textarea id="loadText" placeholder="E5-D5-C5-C6"></textarea>
+    <div class="buttons" style="margin-top:10px">
+      <button id="loadApply">Загрузить</button>
+      <button class="secondary" onclick="loadDialog.close()">Закрыть</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="reportDialog">
+  <div class="modal-inner">
+    <h2>Отчёт хода</h2>
+    <div class="report-preview" id="reportPreview"></div>
+    <div class="buttons" style="margin-top:10px">
+      <button id="copyReportAgain">Скопировать</button>
+      <button class="secondary" onclick="reportDialog.close()">Закрыть</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="moveDialog">
+  <div class="modal-inner">
+    <h2>Новый ход 🐾</h2>
+    <div class="report-preview" id="moveText"></div>
+    <div class="buttons" style="margin-top:10px">
+      <button id="copyMoveReport">Скопировать отчёт</button>
+      <button class="secondary" onclick="moveDialog.close()">Закрыть</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="welcomeDialog">
+  <div class="modal-inner rules">
+    <h2>🐾 Добро пожаловать в сафари</h2>
+    <p><b>Что здесь делать:</b> отмечать путь по карте, считать крестики, находить животных и копировать отчёт для каждого нового хода.</p>
+    <p><b>Если ты уже играешь:</b> нажми «Внести пройденное» и протыкай свой путь по карте по порядку: E5 → дальше по своим ходам. Приложение само посчитает сумму и найденных животных.</p>
+    <p><b>Если хочешь просто подумать:</b> нажми «Прикинуть маршрут». Это черновик — можно считать крестики и искать удобный путь, но он не сохранится как пройденный.</p>
+    <p><b>Когда нужен новый ход:</b> нажми «Новый ход / продолжить» и выбери соседнюю клетку. Появится плашка: сколько вышить и готовый отчёт для копирования.</p>
+    <div class="buttons" style="margin-top:10px">
+      <button class="wide" onclick="welcomeDialog.close()">Пойти в саванну</button>
+      <button class="secondary wide" onclick="welcomeDialog.close(); rulesDialog.showModal();">Открыть полные правила</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="rulesDialog">
+  <div class="modal-inner rules">
+    <h2>🐾 Правила</h2>
+    <p><b>Цель игры:</b> пройти маршрут по карте, найти всех животных и дойти до клетки рядом с финишем.</p>
+
+    <p><b>Старт:</b> E5. <b>Финиш:</b> J1. На сам финишный флажок вставать не нужно — игра считается завершённой, когда игрок дошёл до клетки рядом с ним: <b>I1</b> или <b>J2</b>.</p>
+
+    <p><b>Как ходить:</b> можно двигаться только на одну клетку вверх, вниз, влево или вправо. По диагонали нельзя. Прыгать через клетки нельзя. Каждую клетку можно использовать только один раз — возвращаться на уже пройденные клетки нельзя.</p>
+
+    <p><b>Стоимость клетки:</b> обычная клетка стоит столько крестиков, сколько на ней написано. Клетка с животным всегда стоит <b>300 крестиков</b>. После перехода на клетку с животным оно считается найденным.</p>
+
+    <p><b>Режим «Прикинуть маршрут»:</b> это черновик для планирования. Можно тыкать клетки и смотреть общую сумму крестиков, чтобы выбрать путь. Такой маршрут не считается пройденным и не перезаписывает сохранённую игру.</p>
+
+    <p><b>Режим «Внести пройденное»:</b> нужен, если ты уже прошла часть сафари. Нажми кнопку и протыкай клетки по порядку, начиная со старта E5. Приложение проверит путь, подсветит пройденные клетки, посчитает общую сумму и отметит найденных животных. Если ошибся/ошиблась — нажми последнюю клетку маршрута ещё раз или кнопку «Шаг назад».</p>
+
+    <p><b>Режим «Новый ход / продолжить»:</b> нужен для текущей игры. Нажми кнопку и выбери следующую соседнюю клетку. После выбора появится плашка: откуда и куда идёшь, сколько нужно вышить, найденное животное, если оно есть, и готовый отчёт для копирования.</p>
+
+    <p><b>Сохранение:</b> кнопка «Скопировать код» копирует маршрут вида E5-D5-C5. Этот код можно сохранить себе в заметки. Через «Загрузить код» можно восстановить маршрут на другом устройстве или после очистки браузера.</p>
+
+    <p><b>Отчёт:</b> приложение копирует отчёт последнего хода в формате: ход, где стояла, куда перешли, сколько вышито, найденные животные, кого осталось найти, всего крестиков и хэштег.</p>
+
+    <p><b>Подсказка:</b> если хочется сначала помучиться с выгодным путём — используй «Прикинуть маршрут», а когда маршрут уже выбран, внеси настоящий путь через «Внести пройденное» или продолжай игру через «Новый ход».</p>
+
+    <div class="buttons"><button class="secondary wide" onclick="rulesDialog.close()">Понятно</button></div>
+  </div>
+</dialog>
+
+<script>
+const cols = ['A','B','C','D','E','F','G','H','I','J'];
+const startCell = 'E5';
+const finishCell = 'J1';
+const finishNear = new Set(['I1','J2']);
+const allAnimals = ['🦍','🐘','🐫','🦒','🦓','🦘','🦏','🐊','🦎','🐅','🐆','🦩'];
+const animals = {
+  F1:'🦍', C2:'🐘', H2:'🐫', A3:'🦒', F4:'🦓', G5:'🦘', C6:'🦏', J7:'🐊', B8:'🦎', G8:'🐅', E9:'🐆', H10:'🦩'
+};
+const values = {
+  A1:760,B1:680,C1:590,D1:640,E1:520,F1:300,G1:740,H1:790,I1:720,J1:0,
+  A2:420,B2:360,C2:300,D2:520,E2:410,F2:580,G2:690,H2:300,I2:660,J2:700,
+  A3:300,B3:260,C3:330,D3:470,E3:360,F3:520,G3:610,H3:560,I3:480,J3:620,
+  A4:210,B4:240,C4:310,D4:420,E4:280,F4:300,G4:540,H4:430,I4:510,J4:650,
+  A5:190,B5:220,C5:270,D5:340,E5:0,F5:260,G5:300,H5:370,I5:460,J5:610,
+  A6:230,B6:280,C6:300,D6:300,E6:320,F6:410,G6:520,H6:450,I6:560,J6:680,
+  A7:310,B7:360,C7:420,D7:510,E7:440,F7:560,G7:610,H7:620,I7:650,J7:300,
+  A8:380,B8:300,C8:460,D8:540,E8:520,F8:640,G8:300,H8:700,I8:760,J8:820,
+  A9:450,B9:520,C9:590,D9:660,E9:300,F9:710,G9:760,H9:780,I9:690,J9:860,
+  A10:560,B10:640,C10:700,D10:780,E10:820,F10:860,G10:890,H10:300,I10:840,J10:900
+};
+let route = [];
+let planRoute = [];
+let mode = 'idle';
+let lastReport = '';
+let lastActionMode = ''; 
+const $ = id => document.getElementById(id);
+
+function coord(col,row){return cols[col-1]+row}
+function parseCoord(c){const col = cols.indexOf(c.replace(/\d+/,'').toUpperCase())+1; const row = parseInt(c.replace(/\D/g,''),10); return {col,row}}
+function isAdjacent(a,b){const A=parseCoord(a), B=parseCoord(b); return Math.abs(A.col-B.col)+Math.abs(A.row-B.row)===1}
+function calcTotal(arr){return arr.reduce((sum,c,i)=> sum + (i===0 ? 0 : values[c]), 0)}
+function routeTotal(){return calcTotal(route)}
+function planTotal(){return calcTotal(planRoute)}
+function foundList(){return route.filter(c=>animals[c]).map(c=>animals[c])}
+function unique(arr){return [...new Set(arr)]}
+function leftList(){const f = new Set(foundList()); return allAnimals.filter(a=>!f.has(a))}
+function current(){return route[route.length-1] || '—'}
+function stepCount(){return Math.max(0, route.length-1)}
+
+function buildMap(){
+  const map = $('map');
+  map.innerHTML='';
+  const corner = document.createElement('div'); corner.className='cell head corner'; map.appendChild(corner);
+  cols.forEach(c=>{const d=document.createElement('div'); d.className='cell head'; d.textContent=c; map.appendChild(d)});
+  for(let r=1;r<=10;r++){
+    const rh=document.createElement('div'); rh.className='cell rowhead'; rh.textContent=r; map.appendChild(rh);
+    for(let ci=1;ci<=10;ci++){
+      const c=coord(ci,r);
+      const d=document.createElement('div'); d.className='cell playable'; d.dataset.coord=c;
+      if(c===startCell){d.classList.add('start'); d.textContent='СТАРТ'}
+      else if(c===finishCell){d.classList.add('finish'); d.textContent='🏁'}
+      else if(animals[c]){d.classList.add('animal'); d.textContent=animals[c]}
+      else d.textContent=values[c];
+      d.addEventListener('click',()=>clickCell(c));
+      map.appendChild(d);
+    }
+  }
+  render();
+}
+
+function activeRoute(){ return mode==='plan' ? planRoute : route; }
+function setActiveRoute(arr){ if(mode==='plan') planRoute = arr; else route = arr; }
+
+function undoLastStep(){
+  if(mode==='plan'){
+    if(!planRoute.length){toast('Черновик пустой'); return;}
+    const removed = planRoute.pop();
+    render();
+    toast(`Убрала последнюю клетку ${removed} из черновика`);
+    return;
+  }
+  if(!route.length){toast('Маршрут пока пустой'); return;}
+  const removed = route.pop();
+  if(route.length>1) makeLastReport(route[route.length-2], route[route.length-1]);
+  else lastReport='';
+  saveLocal();
+  render();
+  toast(`Убрала последнюю клетку ${removed}`);
+}
+
+function clickCell(c){
+  if(mode==='idle') { toast('Сначала выбери режим: прикинуть, внести пройденное или новый ход.'); bump(c,false); return; }
+  if(c===finishCell){ toast('На финишный флажок вставать не нужно. Завершение — на I1 или J2.'); bump(c,false); return; }
+
+  let arr = activeRoute().slice();
+  if(arr.length && c===arr[arr.length-1]){ undoLastStep(); bump(c,true); return; }
+  if(arr.length===0){
+    if(c!==startCell){ toast('Начинаем со старта E5. Сначала нажми клетку E5.'); bump(c,false); return; }
+    arr.push(c); setActiveRoute(arr);
+    if(mode!=='plan') saveLocal();
+    render();
+    toast(mode==='plan' ? 'Черновой маршрут начат со старта.' : 'Старт отмечен. Теперь тыкай путь по порядку.');
+    bump(c,true); return;
+  }
+
+  const prev = arr[arr.length-1];
+  if(arr.includes(c)){ toast('🐾 Сюда уже ходили. По своим следам не возвращаемся.'); bump(c,false); return; }
+  if(!isAdjacent(prev,c)){ toast('Сафари-гид ворчит: туда нельзя. Только вверх, вниз, влево или вправо.'); bump(c,false); return; }
+
+  arr.push(c); setActiveRoute(arr);
+
+  if(mode==='plan'){
+    render();
+    toast(`Черновик: ${prev} → ${c}. Итого ${planTotal()}х.`);
+    bump(c,true);
+    return;
+  }
+
+  makeLastReport(prev,c);
+  saveLocal(); render(); bump(c,true);
+
+  if(mode==='enter'){
+    const msg = animals[c] ? `Пройденное внесено: ${prev} → ${c}, животное ${animals[c]}, +300х.` : `Пройденное внесено: ${prev} → ${c}, +${values[c]}х.`;
+    toast(msg);
+    return;
+  }
+
+  showMovePrompt(prev,c);
+}
+
+function showMovePrompt(from,to){
+  const animalLine = animals[to] ? `\nНайдено животное: ${animals[to]}` : '';
+  const finishLine = finishNear.has(to) ? `\n\n🏁 Это клетка рядом с финишем!` : '';
+  $('moveText').textContent = `Выбран ход ${stepCount()}\n${from} → ${to}\n\nНужно вышить: ${values[to]}х${animalLine}\n\nПосле вышивки можно скопировать отчёт ниже.${finishLine}\n\n` + lastReport;
+  moveDialog.showModal();
+}
+
+function makeLastReport(from,to){
+  const tag = $('tagInput').value.trim() || '#';
+  const found = unique(foundList()).join(' ') || '—';
+  const left = leftList().join(' ') || 'все найдены';
+  const fromLine = `Стояла на ${from}`;
+  const toLine = `Встала на ${to}`;
+  lastReport = `Ход ${stepCount()}\n${fromLine}\n${toLine}\nВышито ${values[to]}\n\nНайденные животные: ${found}\nОсталось найти: ${left}\nВсего ${routeTotal()}\n\n${tag}`;
+}
+
+function render(){
+  document.querySelectorAll('.playable').forEach(el=>{
+    const c=el.dataset.coord;
+    el.classList.remove('visited','planned','current','found-animal');
+    const old=el.querySelector('.route-num'); if(old) old.remove();
+    const idx = route.indexOf(c);
+    const pidx = planRoute.indexOf(c);
+    if(pidx>=0 && idx<0){
+      el.classList.add('planned');
+      const n=document.createElement('span'); n.className='route-num'; n.textContent=pidx; el.appendChild(n);
+    }
+    if(idx>=0){
+      el.classList.add('visited');
+      const n=document.createElement('span'); n.className='route-num'; n.textContent=idx; el.appendChild(n);
+    }
+    if(c===current() && mode!=='plan') el.classList.add('current');
+    if(mode==='plan' && c===planRoute[planRoute.length-1]) el.classList.add('current');
+    if(route.includes(c) && animals[c]) el.classList.add('found-animal');
+  });
+  $('stepValue').textContent= mode==='plan' ? Math.max(0, planRoute.length-1) : stepCount();
+  $('totalValue').textContent= (mode==='plan' ? planTotal() : routeTotal())+'х';
+  $('currentValue').textContent= mode==='plan' ? (planRoute[planRoute.length-1] || '—') : current();
+  $('animalValue').textContent=`${unique(foundList()).length}/12`;
+  $('foundAnimals').innerHTML = allAnimals.map(a=> unique(foundList()).includes(a) ? `<span>${a}</span>` : `<span class="muted">${a}</span>`).join(' ');
+  $('leftAnimals').innerHTML = leftList().length ? leftList().join(' ') : '🎉 все найдены';
+  $('routeBox').textContent = mode==='plan'
+    ? (planRoute.length ? `Черновик: ${planRoute.join(' → ')}\nИтого: ${planTotal()}х` : 'Черновик пустой')
+    : (route.length ? route.join(' → ') : 'Пока пусто');
+  $('modeHint').textContent = mode==='plan' ? 'Черновик маршрута: счётчик считает, но путь не сохраняется как пройденный' : mode==='enter' ? 'Внесение пройденного: тыкай уже сделанные ходы по порядку' : mode==='play' ? 'Новый ход: нажми следующую клетку, появится сколько вышить и отчёт' : 'Выбери режим: прикинуть, внести пройденное или новый ход';
+}
+function bump(c,good){const el=document.querySelector(`[data-coord="${c}"]`); if(!el)return; el.classList.remove('bad','good-pop'); void el.offsetWidth; el.classList.add(good?'good-pop':'bad'); setTimeout(()=>el.classList.remove('bad','good-pop'),650)}
+function toast(msg){const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(window.toastTimer); window.toastTimer=setTimeout(()=>t.classList.remove('show'),2600)}
+function saveLocal(){localStorage.setItem('safari_route', route.join('-')); localStorage.setItem('safari_tag', $('tagInput').value)}
+function loadLocal(){const r=localStorage.getItem('safari_route'); const tag=localStorage.getItem('safari_tag'); if(tag && tag !== '#matsssko') $('tagInput').value=tag; else $('tagInput').value='#'; if(r) validateAndLoad(r,false)}
+function validateAndLoad(text, noisy=true){
+  const arr = text.toUpperCase().replace(/\s+/g,'').split('-').filter(Boolean);
+  const seen = new Set();
+  if(!arr.length) { if(noisy) toast('Код пустой'); return false; }
+  for(let i=0;i<arr.length;i++){
+    const c=arr[i];
+    if(!(c in values)){ if(noisy) toast(`Клетки ${c} нет на карте`); return false; }
+    if(c===finishCell){ if(noisy) toast('В коде не должно быть J1 — это финишный флажок'); return false; }
+    if(i===0 && c!==startCell){ if(noisy) toast('Маршрут должен начинаться со старта E5'); return false; }
+    if(seen.has(c)){ if(noisy) toast(`Клетка ${c} повторяется`); return false; }
+    if(i>0 && !isAdjacent(arr[i-1],c)){ if(noisy) toast(`Переход ${arr[i-1]} → ${c} не по правилам`); return false; }
+    seen.add(c);
+  }
+  route = arr;
+  planRoute = [];
+  if(route.length>1) makeLastReport(route[route.length-2], route[route.length-1]);
+  saveLocal(); render(); if(noisy) toast('Маршрут загружен'); return true;
+}
+async function copy(text){try{await navigator.clipboard.writeText(text); toast('Скопировано');}catch(e){toast('Не получилось скопировать автоматически. Можно выделить текст вручную.')}}
+
+$('planBtn').onclick=()=>{mode='plan'; planRoute = route.length ? route.slice() : []; toast(planRoute.length ? `Черновик начат с твоей текущей точки ${planRoute[planRoute.length-1]}.` : 'Нажми E5 и прикинь маршрут по крестикам.'); render()};
+$('enterBtn').onclick=()=>{mode='enter'; if(!route.length) toast('Нажми E5, потом клетки своего уже пройденного маршрута.'); else toast('Можно продолжать вносить пройденный путь с текущей клетки.'); render()};
+$('continueBtn').onclick=()=>{mode='play'; planRoute=[]; if(!route.length) toast('Сначала отметь старт E5: можно через «Внести пройденное» или прямо здесь.'); else toast(`Новый ход с ${current()}: нажми клетку, куда хочешь пойти.`); render()};
+$('undoBtn').onclick=undoLastStep;
+$('resetBtn').onclick=()=>{ if(confirm('Сбросить весь маршрут?')){route=[]; lastReport=''; saveLocal(); render(); toast('Маршрут очищен');}};
+$('saveBtn').onclick=()=>{ if(!route.length){toast('Пока нечего сохранять'); return;} copy(route.join('-')); };
+$('loadBtn').onclick=()=>{ $('loadText').value=route.join('-'); loadDialog.showModal(); };
+$('loadApply').onclick=()=>{ if(validateAndLoad($('loadText').value,true)) loadDialog.close(); };
+$('reportBtn').onclick=()=>{ if(route.length<2){toast('Для отчёта нужен хотя бы один ход после старта'); return;} makeLastReport(route[route.length-2], route[route.length-1]); $('reportPreview').textContent=lastReport; reportDialog.showModal(); copy(lastReport); };
+$('copyReportAgain').onclick=()=>copy(lastReport);
+$('copyMoveReport').onclick=()=>copy(lastReport);
+$('rulesBtn').onclick=()=>rulesDialog.showModal();
+$('tagInput').addEventListener('input',saveLocal);
+buildMap(); loadLocal();
+setTimeout(()=>{
+  if(window.welcomeDialog && typeof welcomeDialog.showModal === 'function') welcomeDialog.showModal();
+}, 350);
+</script>
+</body>
+</html>
